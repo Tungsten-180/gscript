@@ -1,118 +1,314 @@
 mod gco;
-use gco::C;
 mod gscript_lib;
 use gscript_lib::{Param, Script, Scripting, Syntax};
 use std::fs::File;
 use std::io::Write;
+mod shapes;
+mod extrude;
+use extrude::line;
 
-impl Keys for Syntax {
-    fn to_gco(&self) -> C {
-        match self {
-            Syntax::Probe => C::G30,
-            Syntax::Travel => C::G1,
-            other => C::Invalid,
-        }
-    }
-}
-
-impl gco::Code for str {
-    fn into_gcode(&self) -> gco::C {
-        gco::into_gcode_internal(self)
-    }
-}
-
-trait Keys {
-    fn to_gco(&self) -> C {
-        C::Null
-    }
-}
-///////////////////////////////////////////////////////////////////////////////
 #[derive(Debug)]
-struct Line(C, Option<[Param; 2]>, Option<Vec<[f64; 2]>>);
-///////////////////////////////////////////////////////////////////////////////
-
-fn script_lines(input: &mut Script) -> Vec<Line> {
-    let mut file_out: Vec<Line> = Vec::new();
-
-    for x in input.commands.clone().as_mut().unwrap() {
-        let mut temp = Line(
-            x.0.to_gco(),
-            Some(input.removeparameters().clone()),
-            Some({
-                let k = input.removepoints();
-                k.to_vec()
-            }),
-        );
-        file_out.push(temp);
-    }
-    file_out
+struct Consts<T> {
+    z: Option<T>,
+    f: Option<T>,
 }
 
-fn lines_to_string(lines: Vec<Line>) -> String {
-    let mut out = String::from("G28\n");
-
-    for l in lines {
-        let mut temp = String::new();
-        let g = gco::gcode_to_str(l.0);
-        temp.push_str(&g);
-        let mut fo = String::from("");
-        
-        //pushes params to string if there
-        match l.1 {
-            Some(val) => {
-                for u in val {
-                    match u {
-                        Param::Z(Some(z)) => {
-                            temp.push_str(" Z");
-                            temp.push_str(&z.to_string());
-                        }
-                        Param::F(Some(f)) => {
-                            temp.push_str(" F");
-                            temp.push_str(&f.to_string());
-                            fo.push_str(format!("F{}",&f.to_string()).as_str());
-                        }
-                        Param::Null | Param::Z(None) | Param::F(None) => {}
-                    }
-                }
-            }
-            None => {}
-        }//end of param push
-        temp.push('\n');
-        out.push_str(&temp);
-        for o in l.2.unwrap(){
-          let [x,y] = o;
-          out.push_str(format!("{} X{} Y{}",g,x,y).as_str());
-          if fo.as_str() != ""{out.push_str(format!("F{}\n",fo).as_str());}
-          else{out.push('\n');}
+#[derive(Debug)]
+enum Var<T: Sized> {
+    Const(Consts<T>),
+    List((Param, Vec<T>)),
+}
+trait Unwrap<U, T: Sized> {
+    fn unwrap_const(&self) -> T;
+    fn unwrap_list(&self) -> U;
+}
+impl Unwrap<(Param, Vec<String>), String> for Var<String> {
+    fn unwrap_const(&self) -> String {
+        let x = match self {
+            Var::Const(some) => some,
+            Var::List(_) => panic!(),
+        };
+        //println!("x::{:?}",&self);
+        let s = match &x.z {
+            Some(strig) => strig.clone(),
+            None => String::new(),
+        } + match &x.f {
+            Some(strig) => strig,
+            None => "",
+        };
+        //println!("S:{}",s);
+        s
+    }
+    fn unwrap_list(&self) -> (Param, Vec<String>) {
+        match self {
+            Var::List(some) => some.clone(),
+            Var::Const(_) => panic!(),
         }
     }
+}
+
+fn prange(start: &str, end: &str, focus: &String) -> String {
+    //println!("focus::{:?}", focus);
+    let mut out = String::from(
+        focus
+            .as_str()
+            .split_once(start)
+            .unwrap()
+            .1
+            .split_once(end)
+            .unwrap()
+            .0,
+    );
     out
 }
 
-fn probe_clean(input:String)->String{
-  let mut out = String::new();
-  for x in input.as_str().split('\n'){
-    println!("{:?}",&x);
-    if x.len() > 3{
-      println!("{}",&x[0..3]);
-    if &x[0..3] == "G30" {out.push_str(&format!("G1 {}\nG30\n",&x[4..]));}
-    else{out.push_str(&format!("{}\n",&x))}
-    }else{out.push_str(&format!("{}\n",&x))}
-  }
-  out
+// fn com_match(com:Syntax)->&str{}
+
+fn consts(input: &String) -> Var<String> {
+    //println!(" consts input string::\t{:?}",input);
+    let mut cs: Consts<String> = Consts { z: None, f: None };
+    let u = |z: &String| {
+        let o = prange("(", ")", z);
+        let o = o.as_str().split("const:").nth(1).unwrap();
+        if &o.find(",") != &None {
+            o.split(";")
+                .nth(0)
+                .unwrap()
+                .split(",")
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+        } else {
+            vec![o.split(";").nth(0).unwrap().to_string()]
+        }
+    };
+    //println!("u::{:?}",u(input));
+    for constant in u(input).into_iter() {
+        match constant.get(0..1).unwrap().to_ascii_lowercase().as_str() {
+            "" => {
+                //println!("const::{:?}", constant.get(0..1).unwrap());
+                continue;
+            }
+            "z" => {
+                //println!("const::{:?}", constant.get(0..1).unwrap());
+                cs.z = Some(constant)
+            }
+            "f" => {
+                //println!("const::{:?}", constant.get(0..1).unwrap());
+                cs.f = Some(constant)
+            }
+            _ => {}
+        };
+    }
+    Var::Const(cs)
+}
+
+fn points(input: &String) -> Vec<String> {
+    prange("{", ";}", input)
+        .as_str()
+        .split(";")
+        .map(|x| x.to_string())
+        .collect()
 }
 
 fn main() {
-    let mut script: Script = Script::from_file("in.gscript");
+    let mut input = Script::from_file("in.gscript");
 
-    script.process();
+    //println!("{:?}",input);
 
-    let lines = script_lines(&mut script);
+    input.process();
 
-    println!("Output::\n{:?}", lines);
+    let mut output: String = String::from("G28;home\nG90;abs axis\nG83;rel e\n");
 
-    let mut output = File::create("out.gcode").unwrap();
+  let mut settings = extrude::Settings{
+          nozzle:0.0,
+          layer_width:0.0,
+          layer_height:0.0,
+          extrusion_mult:0.0,
+          max_extrusion:None,
+        };
 
-    write!(output,"{}",probe_clean(lines_to_string(lines))).unwrap();
+    for command in input.commands.unwrap() {
+        let command: String = command.split_ascii_whitespace().collect();
+        //cleans whitespace ^
+        if command.contains("const:") {
+            let x: String = consts(&command).unwrap_const();
+            output.push_str(&format!("G1 {}\n", x));
+            //   ^prints constant gcode for this command(ie. initial layer height)
+        }
+        let ccom = prange("", "(", &command);
+        let com = gscript_lib::to_syntax(&ccom);
+        // gets syntax ^
 
-  }
+        
+
+        match com {
+            Syntax::Settings(_)=>{
+              for point in points(&command){
+                //println!("{:?}",&point);
+                match point.split(":").nth(0).unwrap().to_ascii_lowercase().as_str(){
+                  "w"=>{settings.layer_width = point.split(":").nth(1).unwrap().parse().unwrap()}
+                  "h"=>{settings.layer_height = point.split(":").nth(1).unwrap().parse().unwrap()}
+                "n"=>{settings.nozzle = point.split(":").nth(1).unwrap().parse().unwrap()}
+                "m"=>{settings.extrusion_mult = point.split(":").nth(1).unwrap().parse().unwrap()}
+                  &_=>{panic!()}
+              }
+              }
+            }
+            Syntax::Probe(_) => {
+                for point in points(&command) {
+                    let [x, y] = [
+                        point.split(",").nth(0).unwrap(),
+                        point.split(",").nth(1).unwrap(),
+                    ];
+                    output.push_str(&format!("G1 X{} Y{}\nG30\n", x, y))
+                }
+            }
+            Syntax::Travel(_) => {
+                for point in points(&command) {
+                    let [x, y] = [
+                        point.split(",").nth(0).unwrap(),
+                        point.split(",").nth(1).unwrap(),
+                    ];
+                    output.push_str(&format!("G1 X{} Y{}\n", x, y))
+                }
+            }
+            Syntax::Circle(val) => {
+                let mut c = shapes::Circle {
+                    o: [0.0; 2],
+                    r: 0.0,
+                };
+                for point in points(&command) {
+                    if point.contains("o:") {
+                        c.o = [
+                            point
+                                .split(":")
+                                .nth(1)
+                                .unwrap()
+                                .split(",")
+                                .nth(0)
+                                .unwrap()
+                                .parse::<f64>()
+                                .unwrap(),
+                            point
+                                .split(":")
+                                .nth(1)
+                                .unwrap()
+                                .split(",")
+                                .nth(1)
+                                .unwrap()
+                                .parse::<f64>()
+                                .unwrap(),
+                        ];
+                    } else if point.contains("r:") {
+                        c.r = point.split(":").nth(1).unwrap().parse::<f64>().unwrap();
+                    } else if point.matches(":").collect::<Vec<&str>>().len() == 1 {
+                        c.o = [
+                            point
+                                .split(":")
+                                .nth(0)
+                                .unwrap()
+                                .split(",")
+                                .nth(0)
+                                .unwrap()
+                                .parse::<f64>()
+                                .unwrap(),
+                            point
+                                .split(":")
+                                .nth(0)
+                                .unwrap()
+                                .split(",")
+                                .nth(1)
+                                .unwrap()
+                                .parse::<f64>()
+                                .unwrap(),
+                        ];
+                        c.r = point.split(":").nth(1).unwrap().parse::<f64>().unwrap();
+                    }
+                }
+              if val == None{
+                for step in c.steps() {
+                    let [x, y] = step;
+                    output.push_str(&format!("G1 X{} Y{}\n", x, y))}}
+                else if val == Some("E"){
+                  for step in c.steps() {
+                     let [x, y] = step;
+                    output.push_str(&line(&settings,&x,&y));
+                }
+                
+            }}
+            Syntax::Rectangle(val) => {
+                let mut R = shapes::Rectangle {
+                    c1: [0.0; 2],
+                    c2: [0.0; 2],
+                };
+                for point in points(&command) {
+                    let mut point = point.split(":");
+                    //println!("{:?}",&point.clone().collect::<Vec<&str>>());
+                    R.c1 = [
+                        *&point.clone()
+                            .nth(0)
+                            .unwrap()
+                            .split(",")
+                            .nth(0)
+                            .unwrap()
+                            .parse::<f64>()
+                            .unwrap(),
+                        *&point.clone()
+                            .nth(0)
+                            .unwrap()
+                            .split(",")
+                            .nth(1)
+                            .unwrap()
+                            .parse::<f64>()
+                            .unwrap(),
+                    ];
+                    //println!("{:?}",&point.clone().collect::<Vec<&str>>());
+                    R.c2 =[
+                        *&point.clone()
+                            .nth(1)
+                            .unwrap()
+                            .split(",")
+                            .nth(0)
+                            .unwrap()
+                            .parse::<f64>()
+                            .unwrap(),
+                        *&point.clone()
+                            .nth(1)
+                            .unwrap()
+                            .split(",")
+                            .nth(1)
+                            .unwrap()
+                            .parse::<f64>()
+                            .unwrap(),
+                    ];
+                  if val == None{
+                    for corner in R.corners(){
+                        let [x,y] = corner;
+                        output.push_str(&format!("G1 X{} Y{}\n", x, y));
+                    }
+                    let [x,y] = *R.corners().get(0).unwrap();
+                    output.push_str(&format!("G1 X{} Y{}\n", x, y));
+                }
+                  if val == Some("E"){
+                                        for corner in R.corners(){
+                        let [x,y] = corner;
+                        output.push_str(&line(&settings,&x,&y));
+                    }
+                    let [x,y] = *R.corners().get(0).unwrap();
+                    output.push_str(&line(&settings,&x,&y));
+                  }
+                }
+            }
+
+            Syntax::Err() => {}
+            Syntax::Null => {}
+            Syntax::Extrude(_)=>{}
+        
+    }
+    }
+    output.push_str("G28");
+    let mut outfile = File::create("out.gcode").unwrap();
+
+    write!(outfile, "{}", output);
+    }
+
