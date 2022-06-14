@@ -1,0 +1,5 @@
+*.gcode
+*.gscript
+.replit
+replit.nix
+.replitfix
