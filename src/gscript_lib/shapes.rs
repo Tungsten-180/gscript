@@ -1,5 +1,6 @@
 use std::f64::consts::PI;
 
+#[derive(Clone,Copy)]
 pub struct Rectangle {
     pub c1: [f64; 2],
     pub c2: [f64; 2],
@@ -8,6 +9,22 @@ pub struct Rectangle {
 impl Rectangle{
     pub fn corners(&self)->[[f64;2];4]{
         [self.c1,[self.c1[0],self.c2[1]],self.c2,[self.c2[0],self.c1[1]],]
+    }
+    pub fn difference(&self)->[f64;2]{
+        let [t,u]=self.c1;
+        let [e,i]=self.c2;
+        [t-e,u-i]
+    }
+    pub fn mean_difference(&self)->f64{
+        let [x,y]=self.difference();
+        (x+y)/2.0
+    }
+    pub fn min_difference(&self)->f64{
+        let [x,y] = self.difference();
+        match x > y {
+            true=>y,
+            false=>x,
+        }
     }
 }
 
