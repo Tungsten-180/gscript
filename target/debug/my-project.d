@@ -1,1 +1,0 @@
-/home/wllm/Documents/dev/gitgscript/gscript/target/debug/my-project: /home/wllm/Documents/dev/gitgscript/gscript/src/gscript_lib/gco.rs /home/wllm/Documents/dev/gitgscript/gscript/src/gscript_lib/shapes.rs /home/wllm/Documents/dev/gitgscript/gscript/src/gscript_lib.rs /home/wllm/Documents/dev/gitgscript/gscript/src/main.rs
