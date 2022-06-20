@@ -291,7 +291,7 @@ fn run_rectangle(
             output.push_str(&line(&settings, &x, &y));
         }
         if val == Some("FE"){
-            
+             
         }
     }
 }
