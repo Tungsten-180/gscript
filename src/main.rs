@@ -226,14 +226,14 @@ fn run_rectangle(
     settings: &mut extrude::Settings,
     val: Option<&str>,
 ) {
-    let mut R = shapes::Rectangle {
+    let mut r = shapes::Rectangle {
         c1: [0.0; 2],
         c2: [0.0; 2],
     };
     for point in points(&command) {
         let mut point = point.split(":");
         //println!("{:?}",&point.clone().collect::<Vec<&str>>());
-        R.c1 = [
+        r.c1 = [
             *&point
                 .clone()
                 .nth(0)
@@ -254,7 +254,7 @@ fn run_rectangle(
                 .unwrap(),
         ];
         //println!("{:?}",&point.clone().collect::<Vec<&str>>());
-        R.c2 = [
+        r.c2 = [
             *&point
                 .clone()
                 .nth(1)
@@ -275,23 +275,23 @@ fn run_rectangle(
                 .unwrap(),
         ];
         if val == None {
-            for corner in R.corners() {
+            for corner in r.corners() {
                 let [x, y] = corner;
                 output.push_str(&format!("G1 X{} Y{}\n", x, y));
             }
-            let [x, y] = *R.corners().get(0).unwrap();
+            let [x, y] = *r.corners().get(0).unwrap();
             output.push_str(&format!("G1 X{} Y{}\n", x, y));
         }
         if val == Some("E") {
-            for corner in R.corners() {
+            for corner in r.corners() {
                 let [x, y] = corner;
                 output.push_str(&line(&settings, &x, &y));
             }
-            let [x, y] = *R.corners().get(0).unwrap();
+            let [x, y] = *r.corners().get(0).unwrap();
             output.push_str(&line(&settings, &x, &y));
         }
         if val == Some("FE"){
-             
+             output.push_str(&extrude::rectangle_plane_by_perimeters(r, settings))
         }
     }
 }

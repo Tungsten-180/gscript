@@ -179,7 +179,7 @@ pub mod extrude {
         format!("G1 X{} Y{} E{}\n", x, y, e)
     }
 
-    pub fn rectangle_perimeter(r: super::shapes::Rectangle, settings: &Settings) -> String {
+    pub fn rectangle_perimeter(r: &super::shapes::Rectangle, settings: &Settings) -> String {
         let mut output = String::new();
         for corner in r.corners() {
             let [x, y] = corner;
@@ -190,18 +190,41 @@ pub mod extrude {
         output
     }
 
+
+
     pub fn rectangle_plane_by_perimeters(r: super::shapes::Rectangle, settings: &Settings)->String{
         let mut rect = r.clone();
-        let mut output = rectangle_perimeter(r, settings);
+        let mut output = rectangle_perimeter(&r, &settings);
         
 
-        rect.c1 = [rect.c1[0]-(&settings.layer_width/2.0),rect.c1[1]-(&settings.layer_width/2.0)];
-        rect.c2 = [rect.c2[0]-(&settings.layer_width/2.0),rect.c2[1]-(&settings.layer_width/2.0)];
+        // rect.c1 = [rect.c1[0]-(&settings.layer_width/2.0),rect.c1[1]-(&settings.layer_width/2.0)];
+        // rect.c2 = [rect.c2[0]-(&settings.layer_width/2.0),rect.c2[1]-(&settings.layer_width/2.0)];
+        println!("rect:{:?}",&rect.min_difference());
+        let mut count = 0;
+        while &rect.min_difference().abs() > &(1.0*&settings.layer_width) {
+        // while count < 20{
+            let [rx,ry]=&rect.c1.clone();
+            let [rxx,ryy]=&rect.c2.clone();
 
-        while &r.min_difference() > &settings.layer_width {
-            output.push_str(&rectangle_perimeter(rect, settings));
-            rect.c1 = [rect.c1[0]-(&settings.layer_width/2.0),rect.c1[1]-(&settings.layer_width/2.0)];
-            rect.c2 = [rect.c2[0]-(&settings.layer_width/2.0),rect.c2[1]-(&settings.layer_width/2.0)];
+            let d = &rect.difference();
+            let m = [&rect.c2[0]-((&rect.c2[0]-&rect.c1[0])/2.0),&rect.c2[1]-((&rect.c2[1]-&rect.c1[1])/2.0)];
+
+            let kx = (rx-m[0])/(&settings.layer_width/2.0);
+            let ky = (ry-m[1])/(&settings.layer_width/2.0);
+
+            let cx = d[0].signum()*(rxx-m[0]);
+            let cy = d[1].signum()*(ryy-m[1]);
+
+            println!("rectangle1:{:?}",&rect);
+            // println!("&rect.difference:{:?}",&rect.difference());
+
+            println!("&rect.MIN_difference:{:?}",&rect.min_difference().abs());
+            output.push_str(&rectangle_perimeter(&rect, &settings));
+
+            rect.c1 = [rx+(cx/kx),ry+(cy/ky)];
+
+            rect.c2 = [rxx-(cx/kx),ryy-(cy/ky)];
+            count += 1;
         }
         output
         
