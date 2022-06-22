@@ -1,4 +1,4 @@
-# gscript.Beta
+# gscript - DO NOT USE!!
 A custom script interpreter for writing gcode more easily but providing more control than in a slicer.
 
 Currently Supports the following commands:
