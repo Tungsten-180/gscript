@@ -1,6 +1,6 @@
 
 # gscript
-# WARNING!! CURRENTLY VERY ALPHA- DO NOT USE ON REAL 3D PRINTER
+# WARNING!! CURRENTLY EXTREMELY ALPHA- DO NOT USE ON 3D PRINTER
 <h3>A custom script interpreter for writing gcode more easily but providing more control than in a slicer.</h4>
 <br>
 
