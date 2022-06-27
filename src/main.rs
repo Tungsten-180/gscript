@@ -1,9 +1,9 @@
 mod gscript_lib;
+use extrude::extrude;
+use gscript_lib::{extrude, shapes};
 use gscript_lib::{Param, Script, Scripting, Syntax};
 use std::fs::File;
 use std::io::Write;
-use gscript_lib::{extrude as extrude,shapes as shapes};
-use extrude::line;
 
 #[derive(Debug)]
 struct Consts<T> {
@@ -120,7 +120,7 @@ fn run_settings(command: &String, settings: &mut extrude::Settings) {
         {
             "w" => settings.layer_width = point.split(":").nth(1).unwrap().parse().unwrap(),
             "h" => settings.layer_height = point.split(":").nth(1).unwrap().parse().unwrap(),
-            "n" => settings.nozzle = point.split(":").nth(1).unwrap().parse().unwrap(),
+            "f" => settings.filament_diameter = point.split(":").nth(1).unwrap().parse().unwrap(),
             "m" => settings.extrusion_mult = point.split(":").nth(1).unwrap().parse().unwrap(),
             &_ => {
                 panic!()
@@ -213,10 +213,13 @@ fn run_circle(
             output.push_str(&format!("G1 X{} Y{}\n", x, y))
         }
     } else if val == Some("E") {
+        let mut laststep: Option<[f64; 2]> = None;
         for step in c.steps() {
-            let [x, y] = step;
-            output.push_str(&line(&settings, &x, &y));
+            // let [x, y] = step;
+            output.push_str(&extrude(&settings, &step, &laststep));
+            laststep = Some(step);
         }
+        output.push_str(&extrude(&settings, &c.steps().remove(0), &laststep));
     }
 }
 
@@ -226,10 +229,7 @@ fn run_rectangle(
     settings: &mut extrude::Settings,
     val: Option<&str>,
 ) {
-    let mut r = shapes::Rectangle {
-        c1: [0.0; 2],
-        c2: [0.0; 2],
-    };
+    let mut r = shapes::Rectangle::from([0.0; 2],[0.0; 2]);
     for point in points(&command) {
         let mut point = point.split(":");
         //println!("{:?}",&point.clone().collect::<Vec<&str>>());
@@ -274,6 +274,7 @@ fn run_rectangle(
                 .parse::<f64>()
                 .unwrap(),
         ];
+        r.init();
         if val == None {
             for corner in r.corners() {
                 let [x, y] = corner;
@@ -283,15 +284,15 @@ fn run_rectangle(
             output.push_str(&format!("G1 X{} Y{}\n", x, y));
         }
         if val == Some("E") {
+            let mut lastcorner: Option<[f64; 2]> = None;
             for corner in r.corners() {
-                let [x, y] = corner;
-                output.push_str(&line(&settings, &x, &y));
+                output.push_str(&extrude(&settings, &corner, &lastcorner));
+                lastcorner = Some(corner);
             }
-            let [x, y] = *r.corners().get(0).unwrap();
-            output.push_str(&line(&settings, &x, &y));
+             output.push_str(&extrude(&settings, &r.corners()[0], &lastcorner));
         }
-        if val == Some("FE"){
-             output.push_str(&extrude::rectangle_plane_by_perimeters(r, settings))
+        if val == Some("FE") {
+            output.push_str(&extrude::rectangle_plane_by_diagonal(&r, settings))
         }
     }
 }
@@ -303,10 +304,10 @@ fn main() {
 
     input.process();
 
-    let mut output: String = String::from("G28;home\nG90;abs axis\nG83;rel e\n");
+    let mut output: String = String::from("G28;home\nG90;abs axis\nM83;rel e\n");
 
     let mut settings = extrude::Settings {
-        nozzle: 0.0,
+        filament_diameter: 0.0,
         layer_width: 0.0,
         layer_height: 0.0,
         extrusion_mult: 0.0,

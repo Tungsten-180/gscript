@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, sync::mpsc::Receiver};
 
 #[derive(Debug,Clone,Copy)]
 pub struct Rectangle {
@@ -7,6 +7,26 @@ pub struct Rectangle {
 }
 
 impl Rectangle{
+    pub fn from(p1:[f64;2], p2:[f64;2])->Rectangle{
+        let mut r = Rectangle{
+            c1 : p1,
+            c2 : p2,
+        };
+        r.init();
+        r
+    }
+
+    pub fn init(&mut self){
+        //c1 = top right
+        let [a,b] = self.c1;
+        //c2 = bottom left
+        let [c,d] = self.c2;
+        self.c1[0] = match a > c{true=> a, false=> c};
+        self.c1[1] = match b > d{true=> b, false=> d};
+        self.c2[0] = match a < c{true=> a, false=> c};
+        self.c2[1] = match b < d{true=> b, false=> d};
+    }
+
     pub fn corners(&self)->[[f64;2];4]{
         [self.c1,[self.c1[0],self.c2[1]],self.c2,[self.c2[0],self.c1[1]],]
     }
@@ -25,6 +45,15 @@ impl Rectangle{
             true=>y.abs(),
             false=>x.abs(),
         }
+    }
+    pub fn height(&self) ->f64{
+        self.c1[1]-self.c2[1]
+    }
+    pub fn width(&self)->f64{
+        self.c1[0]-self.c2[0]
+    }
+    pub fn diagonal(&self)->f64{
+        self.sideln(0).hypot(self.sideln(1))
     }
 }
 
@@ -45,7 +74,7 @@ impl Shape for Rectangle {
             2 => [0, 0],
             1 => [1, 1],
             3 => [1, 1],
-            _ => [5, 5],
+            _ => panic!(),
         };
         { self.c1[index[0]] - self.c2[index[1]] }.abs()
     }
