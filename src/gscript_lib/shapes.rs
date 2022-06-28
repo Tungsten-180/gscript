@@ -1,58 +1,72 @@
 use std::{f64::consts::PI, sync::mpsc::Receiver};
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rectangle {
     pub c1: [f64; 2],
     pub c2: [f64; 2],
 }
 
-impl Rectangle{
-    pub fn from(p1:[f64;2], p2:[f64;2])->Rectangle{
-        let mut r = Rectangle{
-            c1 : p1,
-            c2 : p2,
-        };
+impl Rectangle {
+    pub fn from(p1: [f64; 2], p2: [f64; 2]) -> Rectangle {
+        let mut r = Rectangle { c1: p1, c2: p2 };
         r.init();
         r
     }
 
-    pub fn init(&mut self){
+    pub fn init(&mut self) {
         //c1 = top right
-        let [a,b] = self.c1;
+        let [a, b] = self.c1;
         //c2 = bottom left
-        let [c,d] = self.c2;
-        self.c1[0] = match a > c{true=> a, false=> c};
-        self.c1[1] = match b > d{true=> b, false=> d};
-        self.c2[0] = match a < c{true=> a, false=> c};
-        self.c2[1] = match b < d{true=> b, false=> d};
+        let [c, d] = self.c2;
+        self.c1[0] = match a > c {
+            true => a,
+            false => c,
+        };
+        self.c1[1] = match b > d {
+            true => b,
+            false => d,
+        };
+        self.c2[0] = match a < c {
+            true => a,
+            false => c,
+        };
+        self.c2[1] = match b < d {
+            true => b,
+            false => d,
+        };
     }
 
-    pub fn corners(&self)->[[f64;2];4]{
-        [self.c1,[self.c1[0],self.c2[1]],self.c2,[self.c2[0],self.c1[1]],]
+    pub fn corners(&self) -> [[f64; 2]; 4] {
+        [
+            self.c1,
+            [self.c1[0], self.c2[1]],
+            self.c2,
+            [self.c2[0], self.c1[1]],
+        ]
     }
-    pub fn difference(&self)->[f64;2]{
-        let [t,u]=self.c1;
-        let [e,i]=self.c2;
-        [t-e,u-i]
+    pub fn difference(&self) -> [f64; 2] {
+        let [t, u] = self.c1;
+        let [e, i] = self.c2;
+        [t - e, u - i]
     }
-    pub fn mean_difference(&self)->f64{
-        let [x,y]=self.difference();
-        ((x+y)/2.0).abs()
+    pub fn mean_difference(&self) -> f64 {
+        let [x, y] = self.difference();
+        ((x + y) / 2.0).abs()
     }
-    pub fn min_difference(&self)->f64{
-        let [x,y] = self.difference();
+    pub fn min_difference(&self) -> f64 {
+        let [x, y] = self.difference();
         match x.abs() > y.abs() {
-            true=>y.abs(),
-            false=>x.abs(),
+            true => y.abs(),
+            false => x.abs(),
         }
     }
-    pub fn height(&self) ->f64{
-        self.c1[1]-self.c2[1]
+    pub fn height(&self) -> f64 {
+        self.c1[1] - self.c2[1]
     }
-    pub fn width(&self)->f64{
-        self.c1[0]-self.c2[0]
+    pub fn width(&self) -> f64 {
+        self.c1[0] - self.c2[0]
     }
-    pub fn diagonal(&self)->f64{
+    pub fn diagonal(&self) -> f64 {
         self.sideln(0).hypot(self.sideln(1))
     }
 }
@@ -148,7 +162,7 @@ impl Shape for Triangle {
         { s * (s - a) * (s - b) * (s - c) }.sqrt()
     }
 }
-
+#[derive(Debug, Clone, Copy)]
 pub struct Circle {
     pub o: [f64; 2],
     pub r: f64,
@@ -160,29 +174,29 @@ impl Shape for Circle {
         (x + r <= 100.0) && (y + r <= 100.0)
     }
     fn area(&self) -> f64 {
-        (self.r*self.r)*PI
+        (self.r * self.r) * PI
     }
     fn sideln(&self, side: usize) -> f64 {
-        match side{
-            0=>{},
-            _=>panic!(),
+        match side {
+            0 => {}
+            _ => panic!(),
         };
-        2.0*PI*self.r
+        2.0 * PI * self.r
     }
     fn slope(&self, _point: [usize; 2]) -> [f64; 2] {
-        [0.0;2]
+        [0.0; 2]
     }
 }
 
-impl Circle{
-    pub fn steps(&self)->Vec<[f64;2]>{
-        let mut steps:Vec<[f64;2]> = Vec::new();
-        let dr = 1.0/(2.0*self.r);
+impl Circle {
+    pub fn steps(&self) -> Vec<[f64; 2]> {
+        let mut steps: Vec<[f64; 2]> = Vec::new();
+        let dr = 1.0 / (2.0 * self.r);
         let mut n = 1.0;
-        let maxn = 4.0*PI*self.r;
-        while n <= maxn{
-            steps.push([(dr*n).cos()*self.r,(dr*n).sin()*self.r]);
-            n+=1.0;
+        let maxn = 4.0 * PI * self.r;
+        while n <= maxn {
+            steps.push([(dr * n).cos() * self.r, (dr * n).sin() * self.r]);
+            n += 1.0;
         }
         steps
     }

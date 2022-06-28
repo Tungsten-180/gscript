@@ -176,6 +176,32 @@ pub mod extrude {
         r.sideln(1).hypot(r.sideln(0))
     }
 
+    pub fn circle_perimeter(circle: &super::shapes::Circle, settings: &Settings) -> String {
+        let mut output = String::new();
+        let mut laststep: Option<[f64; 2]> = None;
+        for step in circle.steps() {
+            // let [x, y] = step;
+            output.push_str(&extrude(&settings, &step, &laststep));
+            laststep = Some(step);
+        }
+        output.push_str(&extrude(&settings, &circle.steps().remove(0), &laststep));
+        output
+    }
+
+    pub fn circle_plane_by_perimeter(
+        circle: &super::shapes::Circle,
+        settings: &Settings,
+    ) -> String {
+        let mut output = String::new();
+        let mut circ = *circle;
+        while circ.r > settings.layer_width {
+            output.push_str(&circle_perimeter(&circ, settings));
+            circ.r -= settings.layer_width;
+        }
+
+        output
+    }
+
     pub fn rectangle_perimeter(r: &super::shapes::Rectangle, settings: &Settings) -> String {
         let mut output = String::new();
         let mut lastcorner: Option<[f64; 2]> = None;
@@ -217,9 +243,9 @@ pub mod extrude {
 
         let mut count = 0;
         //long side first short second
-       
+
         // while count < 200{
-        
+
         if r.height() != r.width() {
             match rect.height() > rect.width() {
                 true => rect.c1[1] = rect.c2[1] + rect.width(),
@@ -229,7 +255,7 @@ pub mod extrude {
         output.push_str(&extrude(settings, &rect.c2, &None));
 
         while rect.diagonal() > settings.layer_width {
-            println!("1::{:?}",rect);
+            println!("1::{:?}", rect);
             if opposite_start == false {
                 output.push_str(&extrude(settings, &rect.c2, &Some(rect.c1)));
             } else {
@@ -255,7 +281,6 @@ pub mod extrude {
         if r.height() != r.width() {
             // rect.c1[0] = rect.c1[0]+settings.layer_width;
             // rect.c2[1] = rect.c2[1]-settings.layer_width;
-            
 
             let mut condition: (usize, f64) = (22, 0.0);
             match r.height() > r.width() {
@@ -274,7 +299,7 @@ pub mod extrude {
             // while count < 20 {
             // println!("{:?}",rect);
             while rect.c1[condition.0] < condition.1 {
-                println!("2::{:?}",rect);
+                println!("2::{:?}", rect);
                 if opposite_start == true {
                     output.push_str(&extrude(settings, &rect.c2, &Some(rect.c1)));
                 } else {
@@ -311,7 +336,7 @@ pub mod extrude {
 
         // while count < 20{
         while rect.diagonal() > settings.layer_width {
-            println!("3::{:?}",rect);
+            println!("3::{:?}", rect);
             if opposite_start == true {
                 output.push_str(&extrude(settings, &rect.c2, &Some(rect.c1)));
             } else {
@@ -334,123 +359,4 @@ pub mod extrude {
 
         output
     }
-
-    // pub fn rectangle_plane_by_diagonal(r: super::shapes::Rectangle, settings: &Settings) -> String {
-    //     // let slope = r.slope();
-    //     let mut output = String::from(rectangle_perimeter(&r, settings));
-    //     let mut rect = r;
-    //     let mut count = 0;
-    //     let mut opposite_start = true;
-    //     rect.c1[1] = match rect.c1[1] < rect.c2[1] {
-    //         true => rect.c2[1],
-    //         false => rect.c1[1],
-    //     } - (r.sideln(match r.sideln(0) > r.sideln(1) {
-    //         true => 1,
-    //         false => 0,
-    //     }));
-    //     while line_len(&rect.c1, &Some(rect.c2)) > *&settings.layer_width {
-    //         // while count < 20{
-    //         let [rx, ry] = rect.c1;
-    //         let [rxx, ryy] = rect.c2;
-
-    //         let d = &rect.difference();
-
-    //         // let ky = &settings.layer_width;//(r.sideln(1))/(&settings.layer_width);
-
-    //         let cx = -d[0].signum() * (&settings.layer_width);
-    //         let cy = -d[1].signum() * (&settings.layer_width);
-
-    //         // println!("rectangle1:{:?}",&rect);
-    //         // println!("&rect.difference:{:?}",&rect.difference());
-
-    //         // println!("&rect.MIN_difference:{:?}",&rect.min_difference().abs());
-    //         if opposite_start == false {
-    //             let [p1, p2] = [rect.c1, rect.c2];
-
-    //         } else if opposite_start == true {
-    //             let [p1, p2] = [rect.c2, rect.c1];
-    //         }
-
-    //         output.push_str(&extrude(&settings, &p1, &None));
-    //             output.push_str(&extrude(&settings, &p2, &Some(p1)));
-
-    //         rect.c2 = [rxx - (cx), ryy];
-    //         rect.c1 = [rx, ry + (cy)];
-
-    //         match opposite_start {
-    //             true => opposite_start = false,
-    //             false => opposite_start = true,
-    //         }
-    //         count += 1;
-    //     }
-    //     rect = r;
-    //     output.push_str(&extrude(&settings, &rect.c1, &None));
-
-    //     rect.c1[1] = match rect.c1[1] > rect.c2[1] {
-    //         true => rect.c1[1],
-    //         false => rect.c2[1],
-    //     } - (r.sideln(match r.sideln(0) > r.sideln(1) {
-    //         true => 1,
-    //         false => 0,
-    //     }));
-
-    //     while line_len(&rect.c1, &Some(r.c2)) > settings.layer_width {
-
-    //         if opposite_start == false {
-    //             let [p1, p2] = [rect.c1, rect.c2];
-    //             output.push_str(&extrude(&settings, &p1, &None));
-    //             output.push_str(&extrude(&settings, &p2, &Some(p1)));
-    //         } else if opposite_start == true {
-    //             let [p1, p2] = [rect.c2, rect.c1];
-    //             output.push_str(&extrude(&settings, &p1, &None));
-    //             output.push_str(&extrude(&settings, &p2, &Some(p1)));
-    //         }
-
-    //         rect.c1[1] = rect.c1[1]-settings.layer_width;
-    //         rect.c2[1] = rect.c2[1]-settings.layer_width;
-
-    //         match opposite_start {
-    //             true => opposite_start = false,
-    //             false => opposite_start = true,
-    //         }
-    //     }
-
-    //     // // while line_len(&rect.c1,&Some(rect.c2)) > *&settings.layer_width {
-    //     // while count < 40{
-    //     //     let [rx,ry]=rect.c1;
-    //     //     let [rxx,ryy]=rect.c2;
-
-    //     //     let d = &rect.difference();
-    //     //     let m = [&rect.c2[0]-((&rect.c2[0]-&rect.c1[0])/2.0),&rect.c2[1]-((&rect.c2[1]-&rect.c1[1])/2.0)];
-
-    //     //     let kx = (r.sideln(0))/(&settings.layer_width/2.0);
-    //     //     let ky = (r.sideln(1))/(&settings.layer_width/2.0);
-
-    //     //     let cx = d[0].signum()*(rxx-m[0]);
-    //     //     let cy = d[1].signum()*(ryy-m[1]);
-
-    //     //     // println!("rectangle1:{:?}",&rect);
-    //     //     // println!("&rect.difference:{:?}",&rect.difference());
-
-    //     //     // println!("&rect.MIN_difference:{:?}",&rect.min_difference().abs());
-    //     //     if opposite_start == false{
-    //     //         let [p1,p2] = [rect.c1,rect.c2];
-    //     //         output.push_str(&extrude(&settings, &p1,&None));
-    //     //         output.push_str(&extrude(&settings,&p2,&Some(p1)));
-    //     //     } else if opposite_start == true{
-    //     //         let [p1,p2] = [rect.c2,rect.c1];
-    //     //         output.push_str(&extrude(&settings, &p1,&None));
-    //     //         output.push_str(&extrude(&settings,&p2,&Some(p1)));
-    //     //     }
-
-    //     //     rect.c1 = [rx+(cx/kx),ry];
-    //     //     rect.c2 = [rxx,ryy-(cy/ky)];
-    //     //     match opposite_start{
-    //     //         true=>opposite_start=false,
-    //     //         false=>opposite_start=true,
-    //     //     }
-    //     //     count+=1;
-    //     // }
-    //     output
-    // }
 }

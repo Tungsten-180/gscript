@@ -213,13 +213,9 @@ fn run_circle(
             output.push_str(&format!("G1 X{} Y{}\n", x, y))
         }
     } else if val == Some("E") {
-        let mut laststep: Option<[f64; 2]> = None;
-        for step in c.steps() {
-            // let [x, y] = step;
-            output.push_str(&extrude(&settings, &step, &laststep));
-            laststep = Some(step);
-        }
-        output.push_str(&extrude(&settings, &c.steps().remove(0), &laststep));
+        output.push_str(&extrude::circle_perimeter(&c, settings));
+    } else if val == Some("FE") {
+        output.push_str(&extrude::circle_plane_by_perimeter(&c, settings))
     }
 }
 
@@ -229,7 +225,7 @@ fn run_rectangle(
     settings: &mut extrude::Settings,
     val: Option<&str>,
 ) {
-    let mut r = shapes::Rectangle::from([0.0; 2],[0.0; 2]);
+    let mut r = shapes::Rectangle::from([0.0; 2], [0.0; 2]);
     for point in points(&command) {
         let mut point = point.split(":");
         //println!("{:?}",&point.clone().collect::<Vec<&str>>());
@@ -289,7 +285,7 @@ fn run_rectangle(
                 output.push_str(&extrude(&settings, &corner, &lastcorner));
                 lastcorner = Some(corner);
             }
-             output.push_str(&extrude(&settings, &r.corners()[0], &lastcorner));
+            output.push_str(&extrude(&settings, &r.corners()[0], &lastcorner));
         }
         if val == Some("FE") {
             output.push_str(&extrude::rectangle_plane_by_diagonal(&r, settings))
